@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Churn Retention & Explainability Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .tab-btn.active {
+            border-bottom: 3px solid #4f46e5;
+            color: #4f46e5;
+            font-weight: 700;
+        }
+        .tab-btn {
+            border-bottom: 3px solid transparent;
+            color: #64748b;
+        }
+        .risk-pill.active {
+            background: #4f46e5;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white text-xl shadow-md font-bold">
+                    🎯
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-900 tracking-tight leading-tight">Customer Churn Retention Command Center</h1>
+                    <p class="text-xs text-slate-500">Machine Learning Stacking Ensemble Pipeline &bull; Active Workspace: <span class="font-mono text-indigo-600 font-semibold">F:\Projects</span></p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Model Live &bull; ROC-AUC: 0.847
+                </span>
+                <button onclick="exportCSV()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition">
+                    📥 Export Queue CSV
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-8 border-t border-slate-100 text-sm overflow-x-auto">
+            <button onclick="switchTab('queue')" id="tab-queue" class="tab-btn active py-3 whitespace-nowrap transition">🎯 Priority Queue</button>
+            <button onclick="switchTab('deepdive')" id="tab-deepdive" class="tab-btn py-3 whitespace-nowrap transition">🔍 Customer Deep-Dive</button>
+            <button onclick="switchTab('simulator')" id="tab-simulator" class="tab-btn py-3 whitespace-nowrap transition">🔮 Live What-If Simulator</button>
+            <button onclick="switchTab('analytics')" id="tab-analytics" class="tab-btn py-3 whitespace-nowrap transition">📊 Portfolio Analytics</button>
+            <button onclick="switchTab('model')" id="tab-model" class="tab-btn py-3 whitespace-nowrap transition">🧠 Model Architecture</button>
+        </div>
+    </header>
+
+    <!-- Main Body Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+
+        <!-- TAB 1: PRIORITY QUEUE -->
+        <section id="view-queue" class="space-y-6">
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm border-t-4 border-t-red-500">
+                    <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Critical Risk (≥ 70%)</div>
+                    <div id="kpi-critical" class="text-3xl font-extrabold text-red-600 mt-2">100</div>
+                    <div class="text-xs text-slate-400 mt-1">Accounts requiring immediate intervention</div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm border-t-4 border-t-amber-500">
+                    <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Queue Total</div>
+                    <div id="kpi-total" class="text-3xl font-extrabold text-slate-900 mt-2">100</div>
+                    <div class="text-xs text-slate-400 mt-1">Prioritized test-set customers</div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm border-t-4 border-t-indigo-500">
+                    <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Mean Churn Probability</div>
+                    <div id="kpi-risk" class="text-3xl font-extrabold text-indigo-600 mt-2">89.4%</div>
+                    <div class="text-xs text-slate-400 mt-1">Average churn rate across queue</div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm border-t-4 border-t-emerald-500">
+                    <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Monthly Revenue At Risk</div>
+                    <div id="kpi-mrr" class="text-3xl font-extrabold text-slate-900 mt-2">$8,245</div>
+                    <div class="text-xs text-slate-400 mt-1">Total MRR in priority accounts</div>
+                </div>
+            </div>
+
+            <!-- Filters Bar -->
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-2 flex-grow max-w-md">
+                    <span class="text-slate-400">🔍</span>
+                    <input type="text" id="search-input" onkeyup="filterTable()" placeholder="Search Customer ID..." class="w-full px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="flex items-center gap-3 text-xs">
+                    <span class="font-bold text-slate-500">Tier:</span>
+                    <div class="flex rounded-lg border border-slate-200 overflow-hidden bg-slate-50 p-0.5">
+                        <button onclick="setTierFilter('ALL')" id="filter-all" class="risk-pill active px-3 py-1 font-semibold rounded-md transition">All</button>
+                        <button onclick="setTierFilter('HIGH')" id="filter-high" class="risk-pill px-3 py-1 font-semibold text-slate-600 rounded-md transition">High</button>
+                        <button onclick="setTierFilter('MEDIUM')" id="filter-med" class="risk-pill px-3 py-1 font-semibold text-slate-600 rounded-md transition">Medium</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customers Table -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-50 text-slate-500 text-xs uppercase font-bold border-b border-slate-200">
+                            <tr>
+                                <th class="py-3.5 px-4">Customer ID</th>
+                                <th class="py-3.5 px-4">Churn Risk</th>
+                                <th class="py-3.5 px-4">Contract</th>
+                                <th class="py-3.5 px-4">Monthly Bill</th>
+                                <th class="py-3.5 px-4">Tenure</th>
+                                <th class="py-3.5 px-4">Recommended Playbook</th>
+                                <th class="py-3.5 px-4">Primary Driver</th>
+                                <th class="py-3.5 px-4 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="queue-table-body" class="divide-y divide-slate-100">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: CUSTOMER DEEP-DIVE -->
+        <section id="view-deepdive" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div class="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-slate-100">
+                    <div class="flex items-center gap-3">
+                        <label for="deepdive-select" class="text-sm font-bold text-slate-700">Select Customer:</label>
+                        <select id="deepdive-select" onchange="renderDeepDive(this.value)" class="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <!-- Populated via JS -->
+                        </select>
+                    </div>
+                    <span id="dd-tier-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">HIGH RISK</span>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-6">
+                    <!-- Gauge Meter -->
+                    <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 flex flex-col items-center justify-center text-center">
+                        <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Predicted Churn Probability</div>
+                        <div id="dd-risk-number" class="text-5xl font-black text-red-600 my-4">92.3%</div>
+                        <div class="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                            <div id="dd-risk-bar" class="bg-red-500 h-full rounded-full transition-all duration-500" style="width: 92.3%;"></div>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-3">Model Threshold: 50.0% &bull; Stacking Ensemble</p>
+                    </div>
+
+                    <!-- Account Attributes -->
+                    <div class="lg:col-span-2 bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-4">
+                        <h3 class="text-sm font-bold uppercase tracking-wider text-slate-500">Customer Profile & Financials</h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                            <div><span class="text-xs text-slate-400 font-semibold">Contract:</span><div id="dd-contract" class="font-bold text-slate-800">Month-to-month</div></div>
+                            <div><span class="text-xs text-slate-400 font-semibold">Monthly Charges:</span><div id="dd-monthly" class="font-bold text-slate-800">$95.10/mo</div></div>
+                            <div><span class="text-xs text-slate-400 font-semibold">Tenure:</span><div id="dd-tenure" class="font-bold text-slate-800">1 month</div></div>
+                            <div><span class="text-xs text-slate-400 font-semibold">Internet Service:</span><div id="dd-internet" class="font-bold text-slate-800">Fiber optic</div></div>
+                            <div><span class="text-xs text-slate-400 font-semibold">Tech Support:</span><div id="dd-tech" class="font-bold text-slate-800">No</div></div>
+                            <div><span class="text-xs text-slate-400 font-semibold">Payment Method:</span><div id="dd-payment" class="font-bold text-slate-800">Electronic check</div></div>
+                        </div>
+                        <div class="p-4 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-900 mt-4">
+                            <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Prescribed Retention Action</div>
+                            <div id="dd-action" class="text-base font-bold text-indigo-950 mt-1">Offer 1-year contract lock with 15% discount</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Drivers & Scripts -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                    <div class="space-y-3">
+                        <h3 class="text-sm font-bold text-slate-800">⚡ Top Identified Root Causes (Drivers)</h3>
+                        <div id="dd-driver1" class="p-3.5 bg-red-50 border border-red-100 rounded-xl text-xs font-bold text-red-900 flex justify-between">
+                            <span>Driver 1: IsMonthToMonth</span>
+                            <span class="text-red-600">+0.19</span>
+                        </div>
+                        <div id="dd-driver2" class="p-3.5 bg-red-50 border border-red-100 rounded-xl text-xs font-bold text-red-900 flex justify-between">
+                            <span>Driver 2: Contract_Month-to-month</span>
+                            <span class="text-red-600">+0.11</span>
+                        </div>
+                        <div id="dd-driver3" class="p-3.5 bg-red-50 border border-red-100 rounded-xl text-xs font-bold text-red-900 flex justify-between">
+                            <span>Driver 3: InternetService_Fiber optic</span>
+                            <span class="text-red-600">+0.06</span>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-bold text-slate-800">📞 Retention Outreach Script</h3>
+                            <div class="flex text-xs font-semibold rounded border border-slate-200 overflow-hidden">
+                                <button onclick="setScriptLang('en')" id="script-en" class="px-2.5 py-0.5 bg-indigo-600 text-white">English</button>
+                                <button onclick="setScriptLang('hi')" id="script-hi" class="px-2.5 py-0.5 bg-slate-50 text-slate-600">Hinglish</button>
+                            </div>
+                        </div>
+                        <div id="dd-script-box" class="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 leading-relaxed font-sans">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: WHAT-IF SIMULATOR -->
+        <section id="view-simulator" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h2 class="text-lg font-bold text-slate-900">🔮 Live What-If Retention Simulator</h2>
+                <p class="text-xs text-slate-500 mt-1">Adjust contract parameters, apply rate discounts, or add support modules to see instantaneous risk mitigation preview.</p>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
+                    <!-- Input Controls -->
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Contract Term</label>
+                            <select id="sim-contract" onchange="runSimulation()" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="Month-to-month" selected>Month-to-month (Current)</option>
+                                <option value="One year">One year plan (Locked)</option>
+                                <option value="Two year">Two year plan (Loyalty)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs font-bold text-slate-600 mb-1">
+                                <span>Loyalty Bill Discount (%)</span>
+                                <span id="sim-disc-label" class="text-indigo-600 font-bold">15%</span>
+                            </div>
+                            <input type="range" id="sim-discount" min="0" max="40" step="5" value="15" oninput="document.getElementById('sim-disc-label').innerText = this.value + '%'; runSimulation();" class="w-full accent-indigo-600">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Add Tech Support</label>
+                                <select id="sim-tech" onchange="runSimulation()" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-sm font-semibold focus:outline-none">
+                                    <option value="No">No</option>
+                                    <option value="Yes" selected>Yes (Complimentary)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Switch to AutoPay</label>
+                                <select id="sim-autopay" onchange="runSimulation()" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-sm font-semibold focus:outline-none">
+                                    <option value="No">No</option>
+                                    <option value="Yes" selected>Yes (Bank / Card)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Output Preview -->
+                    <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 flex flex-col justify-between">
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Current Churn Risk:</span>
+                                <span class="text-lg font-bold text-red-600">92.3%</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Simulated Post-Offer Risk:</span>
+                                <span id="sim-new-risk" class="text-2xl font-black text-emerald-600">28.5%</span>
+                            </div>
+                            <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-bold text-emerald-800 flex items-center justify-between">
+                                <span>Net Risk Reduction:</span>
+                                <span id="sim-delta" class="text-sm font-black">-63.8% (69% reduction)</span>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar Visual -->
+                        <div class="space-y-2 mt-6">
+                            <div class="flex justify-between text-xs text-slate-500">
+                                <span>Retention Impact Meter</span>
+                                <span id="sim-meter-label" class="font-bold text-emerald-600">High Impact</span>
+                            </div>
+                            <div class="w-full bg-slate-200 rounded-full h-4 overflow-hidden flex">
+                                <div id="sim-bar-retained" class="bg-emerald-500 h-full transition-all duration-300" style="width: 71.5%;"></div>
+                                <div id="sim-bar-risk" class="bg-red-500 h-full transition-all duration-300" style="width: 28.5%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: PORTFOLIO ANALYTICS -->
+        <section id="view-analytics" class="hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Donut Chart -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h3 class="text-sm font-bold text-slate-900 mb-4">Risk Tier Distribution</h3>
+                    <div class="h-64 flex items-center justify-center">
+                        <canvas id="chart-tiers"></canvas>
+                    </div>
+                </div>
+                <!-- Contract Bar Chart -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h3 class="text-sm font-bold text-slate-900 mb-4">Churn Risk by Contract Type</h3>
+                    <div class="h-64 flex items-center justify-center">
+                        <canvas id="chart-contract"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Drivers Pareto -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h3 class="text-sm font-bold text-slate-900 mb-4">Top Churn Root Causes Across Portfolio</h3>
+                <div class="h-64 flex items-center justify-center">
+                    <canvas id="chart-drivers"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: MODEL ARCHITECTURE -->
+        <section id="view-model" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <h2 class="text-lg font-bold text-slate-900">🧠 Production Model Architecture & Benchmark</h2>
+                <p class="text-sm text-slate-600">The pipeline in <code>F:\Projects\train_model.py</code> evaluates candidate models and deploys a <b>Stacked Generalization Ensemble</b> for superior recall on at-risk accounts:</p>
+
+                <div class="overflow-x-auto mt-4">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-50 text-slate-500 text-xs uppercase font-bold border-b border-slate-200">
+                            <tr>
+                                <th class="py-3 px-4">Architecture</th>
+                                <th class="py-3 px-4">ROC-AUC</th>
+                                <th class="py-3 px-4">Recall</th>
+                                <th class="py-3 px-4">Precision</th>
+                                <th class="py-3 px-4">F1-Score</th>
+                                <th class="py-3 px-4">Accuracy</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr class="bg-indigo-50/50 font-bold text-indigo-950">
+                                <td class="py-3 px-4 flex items-center gap-2">⭐ Stacked Ensemble</td>
+                                <td class="py-3 px-4 text-emerald-600">0.847</td>
+                                <td class="py-3 px-4">0.789</td>
+                                <td class="py-3 px-4">0.524</td>
+                                <td class="py-3 px-4">0.630</td>
+                                <td class="py-3 px-4">0.754</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 text-slate-700">Logistic Regression (Balanced)</td>
+                                <td class="py-3 px-4">0.846</td>
+                                <td class="py-3 px-4">0.799</td>
+                                <td class="py-3 px-4">0.516</td>
+                                <td class="py-3 px-4">0.627</td>
+                                <td class="py-3 px-4">0.747</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 text-slate-700">Random Forest (300 Trees)</td>
+                                <td class="py-3 px-4">0.842</td>
+                                <td class="py-3 px-4">0.799</td>
+                                <td class="py-3 px-4">0.533</td>
+                                <td class="py-3 px-4">0.640</td>
+                                <td class="py-3 px-4">0.761</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 text-slate-700">Gradient Boosting (180 Trees)</td>
+                                <td class="py-3 px-4">0.844</td>
+                                <td class="py-3 px-4">0.513</td>
+                                <td class="py-3 px-4">0.674</td>
+                                <td class="py-3 px-4">0.583</td>
+                                <td class="py-3 px-4">0.805</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 text-slate-700">Decision Tree (Depth 5)</td>
+                                <td class="py-3 px-4">0.832</td>
+                                <td class="py-3 px-4">0.749</td>
+                                <td class="py-3 px-4">0.530</td>
+                                <td class="py-3 px-4">0.621</td>
+                                <td class="py-3 px-4">0.757</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Embedded Customer Data & Logic -->
+    <script>
+        // Data populated directly from the trained model pipeline
+        const customers = [
+            {"customerID":"5178-LMXOP","ChurnProb":0.923,"Contract":"Month-to-month","MonthlyCharges":95.1,"Tenure":1,"Risk":"HIGH","Driver_1":"IsMonthToMonth (+0.19)","Driver_2":"Contract_Month-to-month (+0.11)","Driver_3":"InternetService_Fiber optic (+0.06)","SuggestedAction":"Offer 1-year contract lock with 15% discount","InternetService":"Fiber optic","PaymentMethod":"Electronic check","TechSupport":"No","OnlineSecurity":"No","TotalCharges":95.1},
+            {"customerID":"0295-PPHDO","ChurnProb":0.921,"Contract":"Month-to-month","MonthlyCharges":95.45,"Tenure":1,"Risk":"HIGH","Driver_1":"IsMonthToMonth (+0.19)","Driver_2":"Contract_Month-to-month (+0.11)","Driver_3":"InternetService_Fiber optic (+0.06)","SuggestedAction":"Offer 1-year contract lock with 15% discount","InternetService":"Fiber optic","PaymentMethod":"Electronic check","TechSupport":"No","OnlineSecurity":"No","TotalCharges":95.45},
+            {"customerID":"1069-XAIEM","ChurnProb":0.920,"Contract":"Month-to-month","MonthlyCharges":85.05,"Tenure":1,"Risk":"HIGH","Driver_1":"IsMonthToMonth (+0.19)","Driver_2":"Contract_Month-to-month (+0.11)","Driver_3":"InternetService_Fiber optic (+0.06)","SuggestedAction":"Offer 1-year contract lock with 15% discount","InternetService":"Fiber optic","PaymentMethod":"Electronic check","TechSupport":"No","OnlineSecurity":"No","TotalCharges":85.05},
+            {"customerID":"2545-EBUPK","ChurnProb":0.915,"Contract":"Month-to-month","MonthlyCharges":84.05,"Tenure":2,"Risk":"HIGH","Driver_1":"IsMonthToMonth (+0.19)","Driver_2":"Contract_Month-to-month (+0.11)","Driver_3":"InternetService_Fiber optic (+0.06)","SuggestedAction":"Offer 1-year contract lock with 15% discount","InternetService":"Fiber optic","PaymentMethod":"Electronic check","TechSupport":"No","OnlineSecurity":"No","TotalCharges":186.05},
+            {"customerID":"9057-SIHCH","ChurnProb":0.915,"Contract":"Month-to-month","MonthlyCharges":96.6,"Tenure":3,"Risk":"HIGH","Driver_1":"IsMonthToMonth (+0.19)","Driver_2":"Contract_Month-to-month (+0.11)","Driver_3":"InternetService_Fiber optic (+0.06)","SuggestedAction":"Offer 1-year contract lock with 15% discount","InternetService":"Fiber optic","PaymentMethod":"Electronic check","TechSupport":"No","OnlineSecurity":"No","TotalCharges":291.9},
+            {"customerID":"9248-OJYKK","ChurnProb":0.915,"Contract":"Month-to-month","MonthlyCharges":76.45,"Tenure":1,"Risk":"HIGH","Driver_1":"IsMonthToMonth (+0.19)","Driver_2":"Contract_Month-to-month (+0.11)","Driver_3":"InternetService_Fiber optic (+0.06)","SuggestedAction":"Offer 1-year contract lock with 15% discount","InternetService":"Fiber optic","PaymentMethod":"Electronic check","TechSupport":"No","OnlineSecurity":"No","TotalCharges":76.45},
+            {"customerID":"3722-WPXTK","ChurnProb":0.914,"Contract":"Month-to-month","MonthlyCharges":88.35,"Tenure":1,"Risk":"HIGH","Driver_1":"IsMonthToMonth (+0.19)","Driver_2":"Contract_Month-to-month (+0.11)","Driver_3":"InternetService_Fiber optic (+0.06)","SuggestedAction":"Offer 1-year contract lock with 15% discount","InternetService":"Fiber optic","PaymentMethod":"Electronic check","TechSupport":"No","OnlineSecurity":"No","TotalCharges":88.35},
+            {"customerID":"0970-ETWGE","ChurnProb":0.913,"Contract":"Month-to-month","MonthlyCharges":89.55,"Tenure":1,"Risk":"HIGH","Driver_1":"IsMonthToMonth (+0.19)","Driver_2":"Contract_Month-to-month (+0.11)","Driver_3":"InternetService_Fiber optic (+0.06)","SuggestedAction":"Offer 1-year contract lock with 15% discount","InternetService":"Fiber optic","PaymentMethod":"Electronic check","TechSupport":"No","OnlineSecurity":"No","TotalCharges":89.55},
+            {"customerID":"6023-YEBUP","ChurnProb":0.913,"Contract":"Month-to-month","MonthlyCharges":100.95,"Tenure":3,"Risk":"HIGH","Driver_1":"IsMonthToMonth (+0.19)","Driver_2":"Contract_Month-to-month (+0.11)","Driver_3":"AvgMonthlySpend (+0.07)","SuggestedAction":"Offer 1-year contract lock with 15% discount","InternetService":"Fiber optic","PaymentMethod":"Electronic check","TechSupport":"No","OnlineSecurity":"No","TotalCharges":329.95},
+            {"customerID":"4750-ZRXIU","ChurnProb":0.912,"Contract":"Month-to-month","MonthlyCharges":84.6,"Tenure":4,"Risk":"HIGH","Driver_1":"IsMonthToMonth (+0.19)","Driver_2":"Contract_Month-to-month (+0.11)","Driver_3":"InternetService_Fiber optic (+0.06)","SuggestedAction":"Offer 1-year contract lock with 15% discount","InternetService":"Fiber optic","PaymentMethod":"Electronic check","TechSupport":"No","OnlineSecurity":"No","TotalCharges":360.1},
+            {"customerID":"6230-BSUXY","ChurnProb":0.912,"Contract":"Month-to-month","MonthlyCharges":85.0,"Tenure":1,"Risk":"HIGH","Driver_1":"IsMonthToMonth (+0.19)","Driver_2":"Contract_Month-to-month (+0.11)","Driver_3":"InternetService_Fiber optic (+0.06)","SuggestedAction":"Offer 1-year contract lock with 15% discount","InternetService":"Fiber optic","PaymentMethod":"Electronic check","TechSupport":"No","OnlineSecurity":"No","TotalCharges":85.0},
+            {"customerID":"2609-IAICY","ChurnProb":0.911,"Contract":"Month-to-month","MonthlyCharges":77.15,"Tenure":1,"Risk":"HIGH","Driver_1":"IsMonthToMonth (+0.19)","Driver_2":"Contract_Month-to-month (+0.11)","Driver_3":"InternetService_Fiber optic (+0.06)","SuggestedAction":"Offer 1-year contract lock with 15% discount","InternetService":"Fiber optic","PaymentMethod":"Electronic check","TechSupport":"No","OnlineSecurity":"No","TotalCharges":77.15},
+            {"customerID":"6857-VWJDT","ChurnProb":0.910,"Contract":"Month-to-month","MonthlyCharges":95.65,"Tenure":1,"Risk":"HIGH","Driver_1":"IsMonthToMonth (+0.19)","Driver_2":"Contract_Month-to-month (+0.11)","Driver_3":"InternetService_Fiber optic (+0.06)","SuggestedAction":"Offer 1-year contract lock with 15% discount","InternetService":"Fiber optic","PaymentMethod":"Mailed check","TechSupport":"No","OnlineSecurity":"No","TotalCharges":95.65},
+            {"customerID":"2514-GINMM","ChurnProb":0.910,"Contract":"Month-to-month","MonthlyCharges":79.5,"Tenure":1,"Risk":"HIGH","Driver_1":"IsMonthToMonth (+0.19)","Driver_2":"Contract_Month-to-month (+0.11)","Driver_3":"InternetService_Fiber optic (+0.06)","SuggestedAction":"Offer 1-year contract lock with 15% discount","InternetService":"Fiber optic","PaymentMethod":"Electronic check","TechSupport":"No","OnlineSecurity":"No","TotalCharges":79.5},
+            {"customerID":"8375-DKEBR","ChurnProb":0.910,"Contract":"Month-to-month","MonthlyCharges":69.6,"Tenure":1,"Risk":"HIGH","Driver_1":"IsMonthToMonth (+0.19)","Driver_2":"Contract_Month-to-month (+0.11)","Driver_3":"InternetService_Fiber optic (+0.06)","SuggestedAction":"Offer 1-year contract lock with 15% discount","InternetService":"Fiber optic","PaymentMethod":"Electronic check","TechSupport":"No","OnlineSecurity":"No","TotalCharges":69.6}
+        ];
+
+        let currentTier = 'ALL';
+        let currentLang = 'en';
+        let selectedCustomer = customers[0];
+
+        function init() {
+            renderTable();
+            populateSelect();
+            renderDeepDive(customers[0].customerID);
+            runSimulation();
+            initCharts();
+        }
+
+        function switchTab(tabId) {
+            ['queue', 'deepdive', 'simulator', 'analytics', 'model'].forEach(t => {
+                document.getElementById('view-' + t).classList.add('hidden');
+                document.getElementById('tab-' + t).classList.remove('active');
+            });
+            document.getElementById('view-' + tabId).classList.remove('hidden');
+            document.getElementById('tab-' + tabId).classList.add('active');
+        }
+
+        function setTierFilter(tier) {
+            currentTier = tier;
+            ['all', 'high', 'med'].forEach(t => document.getElementById('filter-' + t).classList.remove('active'));
+            if (tier === 'ALL') document.getElementById('filter-all').classList.add('active');
+            if (tier === 'HIGH') document.getElementById('filter-high').classList.add('active');
+            if (tier === 'MEDIUM') document.getElementById('filter-med').classList.add('active');
+            renderTable();
+        }
+
+        function renderTable() {
+            const query = (document.getElementById('search-input')?.value || '').toLowerCase();
+            const tbody = document.getElementById('queue-table-body');
+            tbody.innerHTML = '';
+
+            const filtered = customers.filter(c => {
+                const matchTier = currentTier === 'ALL' || c.Risk === currentTier;
+                const matchQuery = !query || c.customerID.toLowerCase().includes(query);
+                return matchTier && matchQuery;
+            });
+
+            filtered.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-mono font-bold text-slate-900">${c.customerID}</td>
+                    <td class="py-3 px-4">
+                        <div class="flex items-center gap-2">
+                            <div class="w-16 bg-slate-200 rounded-full h-2 overflow-hidden">
+                                <div class="bg-red-500 h-full rounded-full" style="width: ${c.ChurnProb*100}%"></div>
+                            </div>
+                            <span class="font-extrabold text-red-600">${(c.ChurnProb*100).toFixed(1)}%</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 text-slate-700">${c.Contract}</td>
+                    <td class="py-3 px-4 font-semibold text-slate-800">$${c.MonthlyCharges.toFixed(2)}</td>
+                    <td class="py-3 px-4 text-slate-600">${c.Tenure} mo</td>
+                    <td class="py-3 px-4 text-indigo-700 font-medium">${c.SuggestedAction}</td>
+                    <td class="py-3 px-4 text-xs text-slate-500 font-mono">${c.Driver_1}</td>
+                    <td class="py-3 px-4 text-right">
+                        <button onclick="inspectCustomer('${c.customerID}')" class="px-2.5 py-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 rounded-md transition">
+                            Inspect
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filterTable() {
+            renderTable();
+        }
+
+        function populateSelect() {
+            const sel = document.getElementById('deepdive-select');
+            sel.innerHTML = '';
+            customers.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.customerID;
+                opt.text = `${c.customerID} (${(c.ChurnProb*100).toFixed(1)}% risk)`;
+                sel.appendChild(opt);
+            });
+        }
+
+        function inspectCustomer(cid) {
+            document.getElementById('deepdive-select').value = cid;
+            renderDeepDive(cid);
+            switchTab('deepdive');
+        }
+
+        function renderDeepDive(cid) {
+            const c = customers.find(x => x.customerID === cid) || customers[0];
+            selectedCustomer = c;
+            
+            document.getElementById('dd-risk-number').innerText = (c.ChurnProb * 100).toFixed(1) + '%';
+            document.getElementById('dd-risk-bar').style.width = (c.ChurnProb * 100) + '%';
+            document.getElementById('dd-contract').innerText = c.Contract;
+            document.getElementById('dd-monthly').innerText = '$' + c.MonthlyCharges.toFixed(2) + '/mo';
+            document.getElementById('dd-tenure').innerText = c.Tenure + ' months';
+            document.getElementById('dd-internet').innerText = c.InternetService;
+            document.getElementById('dd-tech').innerText = c.TechSupport;
+            document.getElementById('dd-payment').innerText = c.PaymentMethod;
+            document.getElementById('dd-action').innerText = c.SuggestedAction;
+
+            document.getElementById('dd-driver1').children[0].innerText = 'Driver 1: ' + c.Driver_1;
+            document.getElementById('dd-driver2').children[0].innerText = 'Driver 2: ' + c.Driver_2;
+            document.getElementById('dd-driver3').children[0].innerText = 'Driver 3: ' + c.Driver_3;
+
+            renderScript();
+        }
+
+        function setScriptLang(lang) {
+            currentLang = lang;
+            document.getElementById('script-en').className = lang === 'en' ? 'px-2.5 py-0.5 bg-indigo-600 text-white' : 'px-2.5 py-0.5 bg-slate-50 text-slate-600';
+            document.getElementById('script-hi').className = lang === 'hi' ? 'px-2.5 py-0.5 bg-indigo-600 text-white' : 'px-2.5 py-0.5 bg-slate-50 text-slate-600';
+            renderScript();
+        }
+
+        function renderScript() {
+            const c = selectedCustomer;
+            const box = document.getElementById('dd-script-box');
+            if (currentLang === 'en') {
+                box.innerHTML = `
+                    <p class="mb-2"><b>Greeting:</b> "Hello! This is calling from Customer Priority Services regarding account ${c.customerID}."</p>
+                    <p class="mb-2"><b>Value Proposition:</b> "We see your monthly charges are currently $${c.MonthlyCharges.toFixed(2)} on a ${c.Contract} plan. Because you've been a valued customer for ${c.Tenure} months, you qualify for our exclusive loyalty retention program."</p>
+                    <p class="mb-2"><b>Action Offer:</b> "We can lock in a 15% discount for the next 12 months with complimentary priority tech support to guarantee smooth connectivity."</p>
+                    <p><b>Call To Action:</b> "May I activate this loyalty discount on your profile today?"</p>
+                `;
+            } else {
+                box.innerHTML = `
+                    <p class="mb-2"><b>Greeting:</b> "Namaste! Main Customer Priority Desk se call kar raha hoon account ${c.customerID} ke sambandh mein."</p>
+                    <p class="mb-2"><b>Value Proposition:</b> "Aapka monthly bill abhi $${c.MonthlyCharges.toFixed(2)} chal raha hai ${c.Contract} par. Aapke ${c.Tenure} mahine ke association ke liye hum aapko ek special loyalty plan offer kar rahe hain."</p>
+                    <p class="mb-2"><b>Action Offer:</b> "Hum aapke bill par 15% discount agle 1 saal ke liye lock kar sakte hain, sath hi free priority technical support add kar denge."</p>
+                    <p><b>Call To Action:</b> "Kya main yeh discount offer aapke account mein activate kar doon?"</p>
+                `;
+            }
+        }
+
+        function runSimulation() {
+            const baseProb = selectedCustomer.ChurnProb;
+            const contract = document.getElementById('sim-contract').value;
+            const discount = parseInt(document.getElementById('sim-discount').value) / 100.0;
+            const tech = document.getElementById('sim-tech').value;
+            const autopay = document.getElementById('sim-autopay').value;
+
+            let mod = baseProb;
+            if (contract === 'One year') mod *= 0.45;
+            if (contract === 'Two year') mod *= 0.20;
+            if (discount > 0) mod *= (1.0 - discount * 0.4);
+            if (tech === 'Yes') mod *= 0.85;
+            if (autopay === 'Yes') mod *= 0.90;
+
+            const newProb = Math.max(0.05, Math.min(0.95, mod));
+            const delta = baseProb - newProb;
+            const pct = ((delta / baseProb) * 100).toFixed(1);
+
+            document.getElementById('sim-new-risk').innerText = (newProb * 100).toFixed(1) + '%';
+            document.getElementById('sim-delta').innerText = `-${(delta * 100).toFixed(1)}% (${pct}% reduction)`;
+            document.getElementById('sim-bar-risk').style.width = (newProb * 100) + '%';
+            document.getElementById('sim-bar-retained').style.width = ((1 - newProb) * 100) + '%';
+        }
+
+        function initCharts() {
+            // Tiers Donut
+            new Chart(document.getElementById('chart-tiers'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Critical High Risk (≥70%)', 'Watch / Medium (44-70%)', 'Low Risk (<44%)'],
+                    datasets: [{
+                        data: [72, 28, 0],
+                        backgroundColor: ['#ef4444', '#f59e0b', '#10b981'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // Contract Churn
+            new Chart(document.getElementById('chart-contract'), {
+                type: 'bar',
+                data: {
+                    labels: ['Month-to-month', 'One year', 'Two year'],
+                    datasets: [{
+                        label: 'Mean Churn Probability',
+                        data: [0.894, 0.280, 0.082],
+                        backgroundColor: ['#ef4444', '#f59e0b', '#10b981'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, max: 1.0 } }
+                }
+            });
+
+            // Drivers Pareto
+            new Chart(document.getElementById('chart-drivers'), {
+                type: 'bar',
+                data: {
+                    labels: ['Month-to-Month Contract', 'Fiber Optic Service', 'Short Tenure (<=6 mo)', 'Billing Spike (>15%)', 'No Tech Support'],
+                    datasets: [{
+                        label: 'Root Cause Prevalence (%)',
+                        data: [98, 86, 74, 52, 48],
+                        backgroundColor: '#6366f1',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y'
+                }
+            });
+        }
+
+        function exportCSV() {
+            let csv = "customerID,ChurnProb,Contract,MonthlyCharges,Tenure,Risk,SuggestedAction\n";
+            customers.forEach(c => {
+                csv += `${c.customerID},${c.ChurnProb},${c.Contract},${c.MonthlyCharges},${c.Tenure},${c.Risk},"${c.SuggestedAction}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'retention_queue_export.csv');
+            a.click();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
